@@ -44,9 +44,11 @@ function WHATS_API(USER_ID) {
 * 4 - listened
 */
 var SANITIZE_ACK = function(instanceID,data){
+	//console.log(data);
   return JSON.stringify({
       ack: [{
-        id: data.id._serialized,
+        //id: data.id._serialized,
+		id: data.id,
         chatId: data.id.remote,
         status: (data.ack == 1 ? 'sent' : (data.ack == 2 ? 'delivered' : 'viewed'))
       }],
@@ -59,6 +61,10 @@ var SANITIZE_ACK = function(instanceID,data){
 * you can edit this method but pay attention to documentation.
 */
 var SANITIZE_MSG = function(instanceID,data) {
+
+  if(DEBUG)
+	console.log(data);
+
   return JSON.stringify({
     messages: [{ 
       id: data.id,
@@ -67,16 +73,17 @@ var SANITIZE_MSG = function(instanceID,data) {
       fromMe: false,
       self: 0,
       isForwarded: data.isForwarded,
-      author: data.from,
+      author: (data.isGroupMsg ? data.author : data.from),
       time: data.t,
       lat: data.lat,
       lng: data.lng,
       chatId: data.chat.id,
       type: data.type,
-      senderName: data.sender.verifiedName,
+      senderName: (data.sender.pushname ? data.sender.pushname : data.sender.formattedName),
+	  senderPic: data.sender.profilePicThumbObj.eurl,
       caption: (data.caption ? data.caption : null),
-      quotedMsgBody: (data.quotedMsgObj ? data.quotedMsgObj : null),
-      chatName: data.sender.formattedName,
+      quotedMsgBody: (data.quotedMsgObj ? data.quotedMsgObj : null),	  
+      chatName: (data.isGroupMsg ? data.chat.contact.name : (data.sender.pushname ? data.sender.pushname : data.sender.formattedName))
     }],
     instanceId: instanceID
   });
@@ -88,7 +95,12 @@ var SANITIZE_MSG = function(instanceID,data) {
 */
 WHATS_API.prototype.PROCESS_MESSAGE = function(data){
   var that = this;
-  var SANITIZED = SANITIZE_MSG(that.INSTANCE,data);
+  var SANITIZED = null;
+   try {      
+		SANITIZED = SANITIZE_MSG(that.INSTANCE,data);
+    } catch(e) {
+        //console.log(e);    
+    }
   request({
     method: 'POST',
     url:  that.WEBHOOK,
@@ -101,7 +113,8 @@ WHATS_API.prototype.PROCESS_MESSAGE = function(data){
       if(response.statusCode != 200){
         ERROR_CATCHER("Status Code error: "+response.statusCode,response);
       } else {
-        console.log(SANITIZED);
+        if (DEBUG)
+			console.log(SANITIZED);
       }
     }
   });
@@ -126,7 +139,8 @@ WHATS_API.prototype.PROCESS_ACK = function(data){
       if(response.statusCode != 200){
         ERROR_CATCHER("Status Code WRONG: "+response.statusCode,response);
       } else {
-        console.log(SANITIZED);
+        if (DEBUG)
+			console.log(SANITIZED);
       }
     }
   });
@@ -137,7 +151,8 @@ WHATS_API.prototype.PROCESS_ACK = function(data){
 * if you have any knowleadge about it - help me to improve
 */
 WHATS_API.prototype.PROCESS_STATE = function(data){
-  console.log("[STATE CHANGED] -",data);
+  if (DEBUG)
+	console.log("[STATE CHANGED] -",data);
 };
 
 /*
@@ -151,10 +166,11 @@ WHATS_API.prototype.SETUP = function(CLIENT,WEBHOOK_INPUT,TOKEN_INPUT) {
   that.CONNECTION = CLIENT;
   CLIENT.onMessage(message => {
     //CRECKING IF MESSAGE HAVE ANY MEDIA TYPE EMBED
+	//console.log(message);
      if (message.mimetype) {
       //SAVING MEDIA RECEIVED AND EXPOSE ADDRESS TO WEB
       const mediaData = openWA.decryptMedia(message,uaOverride).then(function(DECRYPTED_DATA){
-        var filename = `${message.t}.${mime.extension(message.mimetype)}`;
+        var filename = `${message.t}.${mime.extension(message.mimetype)}`;		
         fs.writeFile(process.cwd()+'/public/cdn/'+filename, Buffer.from(DECRYPTED_DATA, 'base64'), 'base64',function(err) {
           if(err){
             console.log("#Error on saving file");
@@ -164,9 +180,18 @@ WHATS_API.prototype.SETUP = function(CLIENT,WEBHOOK_INPUT,TOKEN_INPUT) {
             message['body'] = `data:${message.mimetype};base64,${base64Encode(process.cwd()+'/public/cdn/'+filename)}`;
             message['filelink'] = F.ip+':'+F.port+'/cdn/'+filename;
             that.PROCESS_MESSAGE(message);
+			//no store file in server
+			fs.unlink(process.cwd()+'/public/cdn/'+filename,function(err)  {
+				if (err) {
+					//console.error(err)				
+				} 
+			});
           }
         });
-      });
+		
+      });	  
+	  
+	  console.log(imageBase64);
     } else {
       that.PROCESS_MESSAGE(message);
     }

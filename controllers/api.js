@@ -93,6 +93,16 @@ const delay = function(time){
 };
 
 /*
+Generate UUID
+*/
+function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+/*
 * WEBSOCKET
 * this snippet is responsible for keep qrCode refresing on /qrcode/
 * performance: operational
@@ -119,9 +129,15 @@ function sendMessage(instance){
 		if(WA_CLIENT.TOKEN == self.query['token']){
 			if (typeof BODY['body'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
-					if(processData.status){
-						WA_CLIENT.CONNECTION.sendText(processData.chatId, BODY['body']);
-						self.json({status:true});
+					if(processData.status){				
+						
+						//notify after send message who is the id message
+						var getId = async function() {							
+							var r = await WA_CLIENT.CONNECTION.sendText(processData.chatId, BODY['body']);							
+							self.json({status:true, id: r});
+						}						
+						getId();
+						
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
@@ -158,9 +174,10 @@ function sendPTT(instance){
 						    if (!error && response.statusCode == 200) {
 						        data = "data:" + response.headers["content-type"] + ";base64," + Buffer.from(body).toString('base64');
 								WA_CLIENT.CONNECTION.sendFile(processData.chatId,data,'audio.ogg', (BODY['caption'] ? BODY['caption'] : ""));
+								
 						    }
 						});
-						self.json({status:true});
+						self.json({status:true, id: null});
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
@@ -197,8 +214,11 @@ function sendFile(instance){
 						    if (!error && response.statusCode == 200) {
 						        data = "data:" + response.headers["content-type"] + ";base64," + Buffer.from(body).toString('base64');
 						        if(ALLOW_TYPES.includes(response.headers["content-type"].split(';')[0])){
-									WA_CLIENT.CONNECTION.sendFile(processData.chatId,data,BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""));
-									self.json({status:true});
+									var getId = async function() {							
+										var r = await WA_CLIENT.CONNECTION.sendFile(processData.chatId,data,BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""));
+										self.json({status:true, id: r});
+									}						
+									getId();
 						        } else {
 									self.json({status:false, err: "Type of file not allowed"});
 						        }
@@ -210,8 +230,37 @@ function sendFile(instance){
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
 				});
+			} else if (typeof BODY['filename'] !== 'undefined' && typeof BODY['mimetype'] !== 'undefined' && typeof BODY['base64'] !== 'undefined') {
+				BODY_CHECK(BODY).then(function(processData){
+					if(processData.status){						
+						//data = "data:" + BODY['mimetype'] + ";base64," + BODY['base64'];
+						//if(ALLOW_TYPES.includes(BODY['mimetype'].split(';')[0])){
+							
+							var relativePath = require('path').resolve(process.cwd(), 'tmp/' + uuidv4() + '_' + BODY['filename']);
+							fs.writeFile(relativePath, BODY['base64'], {encoding: 'base64'}, function(err) {
+								var getId = async function() {							
+									var r = await WA_CLIENT.CONNECTION.sendFile(processData.chatId, relativePath, BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""));
+									
+									//delete arquivo
+									if (fs.existsSync(relativePath)) {
+											fs.unlinkSync(relativePath);
+									}
+					
+									self.json({status:true, id: r});
+								}						
+								getId();
+							});		
+							
+							
+						/*} else {
+							self.json({status:false, err: "Type of file not allowed"});
+						}*/
+					} else {
+						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
+					}
+				});
 			} else {
-				self.json({status:false, err: "Paramether body and filename is both mandatory"});
+				self.json({status:false, err: "Paramether body and filename is both mandatory or mimetype and base64"});
 			}
 		} else {
 			self.json({status:false, err: "Wrong token authentication"});
@@ -234,8 +283,11 @@ function sendLocation(instance){
 			if (typeof BODY['lat'] !== 'undefined' && typeof BODY['lng'] !== 'undefined' && typeof BODY['address'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
-						WA_CLIENT.CONNECTION.sendLocation(processData.chatId, BODY['lat'], BODY['lng'], BODY['address']);
-						self.json({status:true});
+						var getId = async function() {							
+							var r = await WA_CLIENT.CONNECTION.sendLocation(processData.chatId, BODY['lat'], BODY['lng'], BODY['address']);						
+							self.json({status:true, id: r});
+						}						
+						getId();
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
@@ -264,8 +316,11 @@ function sendGiphy(instance){
 			if (typeof BODY['link'] !== 'undefined' && typeof BODY['caption'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
-						WA_CLIENT.CONNECTION.sendGiphy(processData.chatId,BODY['link'],BODY['caption']);
-						self.json({status:true});
+						var getId = async function() {							
+							var r = await WA_CLIENT.CONNECTION.sendGiphy(processData.chatId,BODY['link'],BODY['caption']);
+							self.json({status:true, id: r});
+						}						
+						getId();
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
@@ -306,8 +361,19 @@ function sendContact(instance){
 						vCard.title = BODY['title'] ? BODY['title'] : '';
 						vCard.url = BODY['url'] ? BODY['url'] : '';
 						vCard.note = BODY['note'] ? BODY['note'] : '';
-						WA_CLIENT.CONNECTION.sendVCard(processData.chatId,vCard.getFormattedString(),BODY['firstName']);
-						self.json({status:true});
+						//console.log(vCard.getFormattedString());
+						//console.log(BODY['vcard']);
+						var getId = async function() {
+							 var r = null;
+							 
+							if(BODY['vcard']) {
+								r = await WA_CLIENT.CONNECTION.sendVCard(processData.chatId,BODY['vcard'],BODY['firstName']);
+							} else {
+								r = await WA_CLIENT.CONNECTION.sendVCard(processData.chatId,vCard.getFormattedString(),BODY['firstName']);
+							}
+							self.json({status:true, id: r});
+						}						
+						getId();
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
@@ -334,9 +400,12 @@ function sendLinkPreview(instance){
 			if (typeof BODY['link'] !== 'undefined' && typeof BODY['text'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
-						WA_CLIENT.CONNECTION.sendLinkWithAutoPreview(processData.chatId,BODY['link'],BODY['text']).then(function(Chat){
-							self.json({status:true, data: Chat});
-						});
+						var getId = async function() {
+							var r = null;
+							r = await WA_CLIENT.CONNECTION.sendLinkWithAutoPreview(processData.chatId,BODY['link'],BODY['text']);
+							self.json({status:true, id: r});
+						};
+						getId();
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
@@ -612,20 +681,24 @@ async function readInstance(masterKey){
 	var self = this;
 	if(WA_CLIENT){
 		if(F.config['masterKey'] == masterKey){
-			var resetState = await WA_CLIENT.CONNECTION.setPresence(true); 
-			var isConnected = await WA_CLIENT.CONNECTION.isConnected(); 
-			var battery = await WA_CLIENT.CONNECTION.getBatteryLevel();
-			var connectionState = await WA_CLIENT.CONNECTION.getConnectionState();
-			var me = await WA_CLIENT.CONNECTION.getMe();
-			self.json({
-				status:true,
-				resetState: resetState,
-				networkData: isConnected,
-				battery: battery,
-				state: connectionState,
-				webhook: WA_CLIENT.WEBHOOK,
-				info: me
-			},true);
+			try {
+				var resetState = await WA_CLIENT.CONNECTION.setPresence(true); 
+				var isConnected = await WA_CLIENT.CONNECTION.isConnected(); 
+				var battery = await WA_CLIENT.CONNECTION.getBatteryLevel();
+				var connectionState = await WA_CLIENT.CONNECTION.getConnectionState();
+				var me = await WA_CLIENT.CONNECTION.getMe();
+				self.json({
+					status:true,
+					resetState: resetState,
+					networkData: isConnected,
+					battery: battery,
+					state: connectionState,
+					webhook: WA_CLIENT.WEBHOOK,
+					info: me
+				},true);
+			} catch (error) {
+				self.json({status:false, err: "You don't have session enable."});
+			}
 		} else {
 			self.json({status:false, err: "You don't have permissions to this action"});
 		}
