@@ -246,8 +246,8 @@ ON('ready', function(){
  //"/whatsSessions/"+F.config['instance'],
   openWA.create({
     //use chrome
-    useChrome: true,
-    executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    //useChrome: true,
+    //executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     // outros param
     deleteSessionDataOnLogout: false,
     legacy: false,
