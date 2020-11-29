@@ -63,24 +63,27 @@ var SANITIZE_ACK = function(instanceID,data){
 var SANITIZE_MSG = function(instanceID,data) {
 
   if(DEBUG)
-	console.log(data);
+	  console.log(data);
 
   return JSON.stringify({
     messages: [{ 
       id: data.id,
       body: data.body,
-      filelink: (data.filelink ? data.filelink : null),
+      filelink: data.filelink,
       fromMe: false,
+      me: data.to,
       self: 0,
       isForwarded: data.isForwarded,
       author: (data.isGroupMsg ? data.author : data.from),
       time: data.t,
       lat: data.lat,
       lng: data.lng,
+      locIslive:  (data.lng ? (data.isLive ? data.isLive : false) : data.isLive),
+      loc: (data.loc ? data.loc : (data.comment ? data.comment : data.loc)),
       chatId: data.chat.id,
       type: data.type,
       senderName: (data.sender.pushname ? data.sender.pushname : data.sender.formattedName),
-	  senderPic: data.sender.profilePicThumbObj.eurl,
+	    senderPic: data.sender.profilePicThumbObj.eurl,
       caption: (data.caption ? data.caption : null),
       quotedMsgBody: (data.quotedMsgObj ? data.quotedMsgObj : null),	  
       chatName: (data.isGroupMsg ? data.chat.contact.name : (data.sender.pushname ? data.sender.pushname : data.sender.formattedName))
@@ -99,7 +102,8 @@ WHATS_API.prototype.PROCESS_MESSAGE = function(data){
    try {      
 		SANITIZED = SANITIZE_MSG(that.INSTANCE,data);
     } catch(e) {
-        //console.log(e);    
+      if (DEBUG)
+        console.log(e);    
     }
   request({
     method: 'POST',
@@ -114,7 +118,7 @@ WHATS_API.prototype.PROCESS_MESSAGE = function(data){
         ERROR_CATCHER("Status Code error: "+response.statusCode,response);
       } else {
         if (DEBUG)
-			console.log(SANITIZED);
+			    console.log(SANITIZED);
       }
     }
   });
@@ -140,7 +144,7 @@ WHATS_API.prototype.PROCESS_ACK = function(data){
         ERROR_CATCHER("Status Code WRONG: "+response.statusCode,response);
       } else {
         if (DEBUG)
-			console.log(SANITIZED);
+		    	console.log(SANITIZED);
       }
     }
   });
@@ -152,7 +156,7 @@ WHATS_API.prototype.PROCESS_ACK = function(data){
 */
 WHATS_API.prototype.PROCESS_STATE = function(data){
   if (DEBUG)
-	console.log("[STATE CHANGED] -",data);
+	  console.log("[STATE CHANGED] -",data);
 };
 
 /*
@@ -160,6 +164,7 @@ WHATS_API.prototype.PROCESS_STATE = function(data){
 * keep your hands away from this
 */
 WHATS_API.prototype.SETUP = function(CLIENT,WEBHOOK_INPUT,TOKEN_INPUT) {
+  
   var that = this;
   that.WEBHOOK = WEBHOOK_INPUT;
   that.TOKEN = TOKEN_INPUT;
@@ -190,18 +195,22 @@ WHATS_API.prototype.SETUP = function(CLIENT,WEBHOOK_INPUT,TOKEN_INPUT) {
         });
 		
       });	  
-	  
-	  console.log(imageBase64);
+    
+    if (DEBUG)
+	     console.log(imageBase64);
     } else {
       that.PROCESS_MESSAGE(message);
     }
   });
+
   CLIENT.onAck(ack => {
     that.PROCESS_ACK(ack);
   });
+
   CLIENT.onStateChanged(state => {
     that.PROCESS_STATE(state);
   });
+
 };
 
 WHATS_API.prototype.SET_QRCODE = function(code){
@@ -234,16 +243,27 @@ ON('ready', function(){
   * Finally creating connection and start headless webBrowser
   * Attention to headless param
   */
-  openWA.create("/whatsSessions/"+F.config['instance'],{
+ //"/whatsSessions/"+F.config['instance'],
+  openWA.create({
+    //use chrome
+    useChrome: true,
+    executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    // outros param
+    deleteSessionDataOnLogout: false,
+    legacy: false,
+    sessionDataPath: "whatsSessions/",
+    sessionId: F.config['instance'].toString(),
     headless: true,
     autoRefresh:true, 
     qrRefreshS:30,
+    qrTimeout:0,
     killTimer: 6000,
     blockCrashLogs: true, 
     bypassCSP: true,
-    browserRevision: "737027"
+    //browserRevision: "1001"
     // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     // executablePath: '/var/www/app/node_modules/puppeteer/.local-chromium/linux-706915'
+   
   }).then(function(client){
     //EXECUTING MODULE SETUP
     if(qrCodeManager){

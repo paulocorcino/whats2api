@@ -1,8 +1,35 @@
 @{title('qr_code.png (350×350)')}
+	<style>
+	.topBar {
+    display: none;
+    visibility: hidden;
+		}
+
+		.container {
+			margin: 0;
+			width: 97%;
+		}
+
+		div#qrcode {
+			width: 250px;
+			height: 250px;
+			margin-top: 0;
+		}
+
+		div#qrspace {
+			background-color: #fff;
+			width: 250px;
+			height: 250px;
+			padding: 10px;
+			border-radius: 9px;
+		}
+
+	</style>
 	<div class="item">
-		<span>This qrCode will auto-refresh every ~30s</span>
-		<img id='loading' src="/loading.gif" style="position: absolute; width: 150px;height: 150px">
-		<div id="qrcode" class="qrCode" style="background-image: url('@{model.qrcode}');"></div>
+		<div id="qrspace">
+			<img id='loading' src="/loading.gif" style="position: absolute; margin: 50px; width: 150px;height: 150px">
+			<div id="qrcode" class="qrCode" style="background-image: url('@{model.qrcode}');"></div>
+		</div>
 	</div>
 
 	<div class="item">

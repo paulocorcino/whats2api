@@ -1,8 +1,11 @@
 //w2api - Version 0.0.8
 var fs = require('fs');
+const { download } = require('total.js/utils');
 var request = require('request').defaults({ encoding: null });
 global.ALLOW_TYPES = ['application/pdf','image/jpeg','image/png','audio/ogg','image/gif'];
 global.default_timeout = 3000;
+global.default_timeout_2 = 6000;
+global.default_timeout_3 = 60000;
 global.download = require('download-file');
 var vCardsJS = require('vcards-js');
 global.qrCodeManager = null;
@@ -24,12 +27,14 @@ exports.install = function() {
 	ROUTE('/{instance}/typing',					typing,				['post',default_timeout]);
 	ROUTE('/{instance}/sendMessage',			sendMessage,		['post',default_timeout]);
 	ROUTE('/{instance}/sendPTT',				sendPTT,			['post',default_timeout]);
-	ROUTE('/{instance}/sendFile',				sendFile,			['post',default_timeout]);
-	ROUTE('/{instance}/sendLinkPreview',		sendLinkPreview,	['post',default_timeout]);
+	ROUTE('/{instance}/sendFile',				sendFile,			['post',60000]);
+	ROUTE('/{instance}/sendLinkPreview',		sendLinkPreview,	['post',10000]);
 	ROUTE('/{instance}/sendLocation',			sendLocation,		['post',default_timeout]);
 	ROUTE('/{instance}/sendGiphy', 				sendGiphy,			['post',default_timeout]);
 	ROUTE('/{instance}/sendContact',			sendContact,		['post',default_timeout]);
+	ROUTE('/{instance}/sendGhostForward',		sendGhostForward,	['post',default_timeout]);
 	ROUTE('/{instance}/getProfilePic',			getProfilePic,		['post',default_timeout]);
+	
 
 	/*
 	* API ROUTES - PersonalInformation
@@ -65,6 +70,7 @@ exports.install = function() {
 	*/	
 	ROUTE('/{masterKey}/readInstance',						readInstance,		[]);
 	ROUTE('/{masterKey}/reloadServer',						reloadServer,		[60000]);
+	ROUTE('/{masterKey}/killInstance',						killInstance,		[60000]);
 	ROUTE('/{masterKey}/setWebhook',						setWebhook,			['post',default_timeout]);
 
 };
@@ -101,6 +107,30 @@ function uuidv4() {
     return v.toString(16);
   });
 }
+
+/* validate URL with regex */
+function is_url(str)
+{
+  regexp =  /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+(:[0-9]+)?|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)/;
+        if (regexp.test(str))
+          return true;
+        else
+          return false;
+}
+
+
+/* http download */
+const download_http = (url, path, callback) => {
+	request.head(url, (err, res, body) => {
+		if (!err && res.statusCode == 200) {
+			request(url)
+				.pipe(fs.createWriteStream(path))		
+				.on('close', callback);	
+		} else {
+			callback(err);
+		}
+	});
+  }
 
 /*
 * WEBSOCKET
@@ -213,15 +243,15 @@ function sendFile(instance){
 						request.get(BODY['body'], function (error, response, body) {
 						    if (!error && response.statusCode == 200) {
 						        data = "data:" + response.headers["content-type"] + ";base64," + Buffer.from(body).toString('base64');
-						        if(ALLOW_TYPES.includes(response.headers["content-type"].split(';')[0])){
+						        //if(ALLOW_TYPES.includes(response.headers["content-type"].split(';')[0])){
 									var getId = async function() {							
 										var r = await WA_CLIENT.CONNECTION.sendFile(processData.chatId,data,BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""));
 										self.json({status:true, id: r});
 									}						
 									getId();
-						        } else {
-									self.json({status:false, err: "Type of file not allowed"});
-						        }
+						       // } else {
+							//		self.json({status:false, err: "Type of file not allowed"});
+						    //    }
 						    } else {
 								self.json({status:false, err: "Internal error to process this file - contact support now"});
 						    }
@@ -230,31 +260,77 @@ function sendFile(instance){
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
 				});
-			} else if (typeof BODY['filename'] !== 'undefined' && typeof BODY['mimetype'] !== 'undefined' && typeof BODY['base64'] !== 'undefined') {
+			} else if (typeof BODY['filename'] !== 'undefined' && typeof BODY['mimetype'] !== 'undefined' && (typeof BODY['base64'] !== 'undefined' || typeof BODY['url'] !== 'undefined')) {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){						
-						//data = "data:" + BODY['mimetype'] + ";base64," + BODY['base64'];
-						//if(ALLOW_TYPES.includes(BODY['mimetype'].split(';')[0])){
-							
-							var relativePath = require('path').resolve(process.cwd(), 'tmp/' + uuidv4() + '_' + BODY['filename']);
-							fs.writeFile(relativePath, BODY['base64'], {encoding: 'base64'}, function(err) {
-								var getId = async function() {							
-									var r = await WA_CLIENT.CONNECTION.sendFile(processData.chatId, relativePath, BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""));
-									
-									//delete arquivo
-									if (fs.existsSync(relativePath)) {
-											fs.unlinkSync(relativePath);
-									}
 					
-									self.json({status:true, id: r});
-								}						
-								getId();
-							});		
-							
-							
-						/*} else {
-							self.json({status:false, err: "Type of file not allowed"});
-						}*/
+						var relativePath = '';
+						
+						if (BODY['mimetype'].split('/')[0] == 'video' || BODY['mimetype'].split('/')[0] == 'image')
+							relativePath = require('path').resolve(process.cwd(), 'tmp/' + uuidv4() + '.' + BODY['mimetype'].split('/')[1]);
+						else
+							relativePath = require('path').resolve(process.cwd(), 'tmp/' + uuidv4() + '_' + BODY['filename']);
+
+							if(typeof BODY['url'] !== 'undefined') {
+								if(is_url(BODY['url'])) {
+								
+									download_http(BODY['url'], relativePath, (e) => {
+										if(!e) {
+
+											var getId = async function() {		
+												var r = null;
+												if (BODY['mimetype'].split('/')[0] == 'video' || BODY['mimetype'].split('/')[0] == 'image')
+												{
+													r = await WA_CLIENT.CONNECTION.sendImage(processData.chatId, relativePath, BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""), null, true);
+													
+												} else {				
+													r = await WA_CLIENT.CONNECTION.sendFile(processData.chatId, relativePath, BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""), null, true);
+												}
+												
+												//delete arquivo
+												if (fs.existsSync(relativePath)) {
+														fs.unlinkSync(relativePath);
+												}
+
+												self.json({status:true, id: r});
+											}	
+
+											getId();
+
+										} else {
+											self.json({status:false, err: "Erro on download"});
+										}									
+									});															
+
+								} else {
+									self.json({status:false, err: "URL not is valid!"});
+								}
+
+							} else {							
+	
+								//use b64 file
+								fs.writeFile(relativePath, BODY['base64'], {encoding: 'base64'}, function(err) {
+									var getId = async function() {		
+										var r = null;
+										if (BODY['mimetype'].split('/')[0] == 'video' || BODY['mimetype'].split('/')[0] == 'image')
+										{
+											r = await WA_CLIENT.CONNECTION.sendImage(processData.chatId, relativePath, BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""), null, true);
+											//r = await WA_CLIENT.CONNECTION.sendImage(processData.chatId, relativePath, BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""), null, true);
+										} else {				
+											r = await WA_CLIENT.CONNECTION.sendFile(processData.chatId, relativePath, BODY['filename'], (BODY['caption'] ? BODY['caption'] : ""), null, true);
+										}
+										
+										//delete arquivo
+										if (fs.existsSync(relativePath)) {
+												fs.unlinkSync(relativePath);
+										}
+						
+										self.json({status:true, id: r});
+									}						
+									getId();
+								});	
+							}	
+
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
@@ -400,18 +476,97 @@ function sendLinkPreview(instance){
 			if (typeof BODY['link'] !== 'undefined' && typeof BODY['text'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
+						//var getId = null;
 						var getId = async function() {
-							var r = null;
-							r = await WA_CLIENT.CONNECTION.sendLinkWithAutoPreview(processData.chatId,BODY['link'],BODY['text']);
-							self.json({status:true, id: r});
-						};
+							/* If [type] not defined is default linkpreview */
+							if( typeof BODY['type'] == 'undefined' &&
+								typeof BODY['base64'] !== 'undefined' && 
+								typeof BODY['title'] !== 'undefined' &&
+								typeof BODY['description'] !== 'undefined' &&
+								typeof BODY['text'] !== 'undefined') {								
+									var r = null;
+									r = await WA_CLIENT.CONNECTION.sendMessageWithThumb(BODY['base64'],													
+														BODY['link'],
+														BODY['title'],
+														BODY['description'],										
+														BODY['text'],
+														processData.chatId);
+									//console.log(r);
+									self.json({status:true, id: uuidv4()});
+							}				
+							 else if(BODY['type'] == 'yt') {								
+									var r = null;
+									r = await WA_CLIENT.CONNECTION.sendYoutubeLink(processData.chatId,BODY['link'], BODY['text']);
+									self.json({status:true, id: r});					
+								
+							} else if(typeof BODY['type'] == 'undefined') {
+									var r = null;
+									r = await WA_CLIENT.CONNECTION.sendLinkWithAutoPreview(processData.chatId,BODY['link'], BODY['text']);
+									//console.log(r);
+									r = await WA_CLIENT.CONNECTION.getMyLastMessage(processData.chatId);
+									self.json({status:true, id: r.id});																
+								
+							} 
+						}
+
 						getId();
+
+						/*if(getId !== null) {
+							getId();
+						} else {
+							self.json({status:false, err: "Parameters is worng"});
+						}*/
+
 					} else {
 						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
 					}
 				});
 			} else {
 				self.json({status:false, err: "Parameter 'link' and 'text' are mandatory"});
+			}
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
+* Route to send Messages
+* tested on version 0.0.8
+* performance: operational
+*/
+function sendGhostForward(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == self.query['token']){
+			if (typeof BODY['id'] !== 'undefined') {
+				BODY_CHECK(BODY).then(function(processData){
+					if(processData.status){				
+									
+						//notify after send message who is the id message
+						var getId = async function() {							
+							var r = await WA_CLIENT.CONNECTION.ghostForward(processData.chatId, BODY['id']);
+							//console.log(r);
+
+							if(r === false) {
+								self.json({status:false, err: "Message not found"});
+							} else {
+								self.json({status:true, id: r});
+							}
+							
+						}	
+
+						getId();
+						
+					} else {
+						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
+					}
+				});
+			} else {
+				self.json({status:false, err: "Paramether ID is mandatory"});
 			}
 		} else {
 			self.json({status:false, err: "Wrong token authentication"});
@@ -536,11 +691,11 @@ function screenCapture(instance,masterKey){
 	if(WA_CLIENT){
 		if(F.config['masterKey'] == masterKey){
 			if(WA_CLIENT.TOKEN == self.query['token']){
-				var imageAddress = U.GUID(10)+'.png';
-				WA_CLIENT.CONNECTION.page.screenshot({path: F.path.public()+'screenshot/'+imageAddress});
-				setTimeout(function(){
-					self.view('screenshot', {address: '/screenshot/'+imageAddress+'?time='+Math.floor(Date.now() / 1000)});
-				},1000);
+				var getId = async function() {
+					var r = await WA_CLIENT.CONNECTION.getSnapshot();
+					self.json({status:true, b64: r});
+				}
+				getId();
 			} else {
 				self.json({status:false, err: "Wrong token authentication"});
 			}
@@ -736,8 +891,59 @@ async function reloadServer(masterKey){
 	var self = this;
 	if(WA_CLIENT){
 		if(F.config['masterKey'] == masterKey){
-			await WA_CLIENT.CONNECTION.kill();
-			await delay(5000);
+			
+				await WA_CLIENT.CONNECTION.kill();
+				await delay(5000);
+						
+
+			openWA.create({
+				deleteSessionDataOnLogout: false,
+				legacy: false,
+				sessionDataPath: "whatsSessions/",
+				sessionId: F.config['instance'].toString(),
+				headless: true,
+				autoRefresh:true, 
+				qrRefreshS:30,
+				qrTimeout:0,
+				killTimer: 6000,
+				blockCrashLogs: true, 
+				bypassCSP: true
+			}).then(function(client){
+			    WA_CLIENT.SETUP(client, F.config['webhook'], F.config['token']);
+			});
+			self.json({status:true});
+		} else {
+			self.json({status:false, err: "You don't have permissions to this action"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+};
+
+/*
+* Kill instance over webhook
+* tested on version 0.0.8
+* performance: Operational
+*/
+async function killInstance(masterKey){
+	var self = this;
+	if(WA_CLIENT){
+		if(F.config['masterKey'] == masterKey){
+			
+			//console.log(WA_CLIENT, WA_CLIENT.CONNECTION);
+			
+			if(Object.keys(WA_CLIENT.CONNECTION).length !== 0){
+				await WA_CLIENT.CONNECTION.kill();
+				await delay(5000);					
+			}
+
+			var relativePath = require('path').resolve(process.cwd(), 'whatsSessions/' + F.config['instance'] + '.data.json');
+			
+			//delete arquivo
+			if (fs.existsSync(relativePath)) {
+				fs.unlinkSync(relativePath);				
+			}
+			
 			openWA.create("/whatsSessions/"+F.config['instance'],{
 			    headless: true,
 			    autoRefresh:true, 
@@ -745,7 +951,8 @@ async function reloadServer(masterKey){
 			    killTimer: 6000
 			}).then(function(client){
 			    WA_CLIENT.SETUP(client, F.config['webhook'], F.config['token']);
-			});
+			});	
+
 			self.json({status:true});
 		} else {
 			self.json({status:false, err: "You don't have permissions to this action"});
