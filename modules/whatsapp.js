@@ -1,4 +1,9 @@
 //w2api - Version 0.0.2
+Array.prototype.find = function(...args) { 
+	let index = this.findIndex(...args);
+	if (index >= 0) return index >= 0 ? this[index] : void 0 ;
+}
+
 global.openWA = require('@open-wa/wa-automate');
 const fs = require('fs');
 const async = require("async");
@@ -246,7 +251,7 @@ ON('ready', function(){
  //"/whatsSessions/"+F.config['instance'],
   openWA.create({
     //use chrome
-    //useChrome: true,
+    useChrome: true,
     //executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     // outros param
     deleteSessionDataOnLogout: false,
