@@ -5,6 +5,7 @@ Array.prototype.find = function(...args) {
 }
 
 global.openWA = require('@open-wa/wa-automate');
+
 const fs = require('fs');
 const async = require("async");
 const request = require('request');
@@ -12,6 +13,24 @@ const moment = require('moment');
 const mime = require('mime-types');
 global.uaOverride = 'WhatsApp/2.16.352 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15';
 global.WA_CLIENT = {};
+global.WA_CONFIG = {
+    useChrome: true,    
+	licenseKey: (F.config['licensekey'].toString() == "[licence]" ? "" : F.config['licensekey'].toString()),
+    deleteSessionDataOnLogout: false,
+    sessionDataPath: "whatsSessions/",
+    sessionId: F.config['instance'].toString(),
+    headless: true,
+	hostNotificationLang: 'PT_BR',
+	skipUpdateCheck:true,	
+    autoRefresh:true, 
+	logFile: true,
+    qrTimeout:0,
+	authTimeout:0,
+    killTimer: 6000,
+    blockCrashLogs: true, 
+    bypassCSP: true,
+	killProcessOnBrowserClose: false   
+  };
 
 /*
 * Function to read files as base64 string
@@ -249,27 +268,7 @@ ON('ready', function(){
   * Attention to headless param
   */
  //"/whatsSessions/"+F.config['instance'],
-  openWA.create({
-    //use chrome
-    useChrome: true,
-    //executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    // outros param
-    deleteSessionDataOnLogout: false,
-    legacy: false,
-    sessionDataPath: "whatsSessions/",
-    sessionId: F.config['instance'].toString(),
-    headless: true,
-    autoRefresh:true, 
-    qrRefreshS:30,
-    qrTimeout:0,
-    killTimer: 6000,
-    blockCrashLogs: true, 
-    bypassCSP: true,
-    //browserRevision: "1001"
-    // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    // executablePath: '/var/www/app/node_modules/puppeteer/.local-chromium/linux-706915'
-   
-  }).then(function(client){
+  openWA.create(WA_CONFIG).then(function(client){
     //EXECUTING MODULE SETUP
     if(qrCodeManager){
       qrCodeManager.send({ connected: true });

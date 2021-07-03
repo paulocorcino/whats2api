@@ -156,7 +156,7 @@ function sendMessage(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['body'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){				
@@ -192,7 +192,7 @@ function sendPTT(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['audio'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
@@ -232,7 +232,7 @@ function sendFile(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['body'] !== 'undefined' && typeof BODY['filename'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
@@ -355,7 +355,7 @@ function sendLocation(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['lat'] !== 'undefined' && typeof BODY['lng'] !== 'undefined' && typeof BODY['address'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
@@ -388,7 +388,7 @@ function sendGiphy(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['link'] !== 'undefined' && typeof BODY['caption'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
@@ -422,7 +422,7 @@ function sendContact(instance){
 	var BODY = self.body;
 	var vCard = vCardsJS();
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['workPhone'] !== 'undefined' && typeof BODY['firstName'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
@@ -472,7 +472,7 @@ function sendLinkPreview(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['link'] !== 'undefined' && typeof BODY['text'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){
@@ -541,7 +541,7 @@ function sendGhostForward(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['id'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){				
@@ -585,7 +585,7 @@ function dialogs(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			WA_CLIENT.CONNECTION.getAllChats().then(function(contacts){
 				self.json({status:true, dialogs:contacts});
 			});
@@ -606,7 +606,7 @@ function getChatById(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			BODY_CHECK(BODY).then(function(processData){
 				if(processData.status){
 					WA_CLIENT.CONNECTION.getChatById(processData.chatId).then(function(Chat){
@@ -632,7 +632,7 @@ function getProfilePic(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			BODY_CHECK(BODY).then(function(processData){
 				if(processData.status){
 					WA_CLIENT.CONNECTION.getProfilePicFromServer(processData.chatId).then(function(Chat){
@@ -658,7 +658,7 @@ function typing(instance){
 	var self = this;
 	var BODY = self.body;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			BODY_CHECK(BODY).then(function(processData){
 				if(processData.status){
 					if(typeof BODY['state'] !== 'undefined'){
@@ -689,8 +689,8 @@ function typing(instance){
 function screenCapture(instance,masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
-			if(WA_CLIENT.TOKEN == self.query['token']){
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				var getId = async function() {
 					var r = await WA_CLIENT.CONNECTION.getSnapshot();
 					self.json({status:true, b64: r});
@@ -715,7 +715,7 @@ function screenCapture(instance,masterKey){
 function isConnected(instance,masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(WA_CLIENT.TOKEN == self.query['token']){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			WA_CLIENT.CONNECTION.isConnected().then(function(response){
 				self.json({status:true, instance_status: response});
 			}).catch((err) => {
@@ -737,8 +737,8 @@ function isConnected(instance,masterKey){
 function takeOver(instance,masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
-			if(WA_CLIENT.TOKEN == self.query['token']){
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				WA_CLIENT.CONNECTION.forceRefocus();
 				self.json({status:true});
 			} else {
@@ -762,7 +762,7 @@ function setMyName(){
 	var BODY = self.body;
 	if(WA_CLIENT){
 		if(BODY['newName']){
-			if(WA_CLIENT.TOKEN == self.query['token']){
+			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				console.log("Setting new name: ",BODY['newName']);
 				WA_CLIENT.CONNECTION.setMyName(BODY['newName']);
 				self.json({status:true});
@@ -787,7 +787,7 @@ function setMyStatus(){
 	var BODY = self.body;
 	if(WA_CLIENT){
 		if(BODY['newStatus']){
-			if(WA_CLIENT.TOKEN == self.query['token']){
+			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				console.log("Setting new status: ",BODY['newStatus']);
 				WA_CLIENT.CONNECTION.setMyStatus(BODY['newStatus']);
 				self.json({status:true});
@@ -810,8 +810,8 @@ function setMyStatus(){
 function batteryLevel(instance,masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
-			if(WA_CLIENT.TOKEN == self.query['token']){
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				WA_CLIENT.CONNECTION.getBatteryLevel().then(function(response){
 					console.log(response);
 					self.json({status:true, batteryLevel: response});
@@ -835,7 +835,7 @@ function batteryLevel(instance,masterKey){
 async function readInstance(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
 			try {
 				var resetState = await WA_CLIENT.CONNECTION.setPresence(true); 
 				var isConnected = await WA_CLIENT.CONNECTION.isConnected(); 
@@ -870,7 +870,7 @@ async function readInstance(masterKey){
 function setWebhook(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
 			WA_CLIENT.WEBHOOK = self.body['webhook'];
 			F.config['webhook'] = self.body['webhook'];
 			self.json({status:true, webhook: self.body['webhook']});
@@ -890,25 +890,13 @@ function setWebhook(masterKey){
 async function reloadServer(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
-			
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		
 				await WA_CLIENT.CONNECTION.kill();
 				await delay(5000);
-						
+			
 
-			openWA.create({
-				deleteSessionDataOnLogout: false,
-				legacy: false,
-				sessionDataPath: "whatsSessions/",
-				sessionId: F.config['instance'].toString(),
-				headless: true,
-				autoRefresh:true, 
-				qrRefreshS:30,
-				qrTimeout:0,
-				killTimer: 6000,
-				blockCrashLogs: true, 
-				bypassCSP: true
-			}).then(function(client){
+			openWA.create(WA_CONFIG).then(function(client){
 			    WA_CLIENT.SETUP(client, F.config['webhook'], F.config['token']);
 			});
 			self.json({status:true});
@@ -928,7 +916,7 @@ async function reloadServer(masterKey){
 async function killInstance(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
 			
 			//console.log(WA_CLIENT, WA_CLIENT.CONNECTION);
 			
@@ -944,12 +932,7 @@ async function killInstance(masterKey){
 				fs.unlinkSync(relativePath);				
 			}
 			
-			openWA.create("/whatsSessions/"+F.config['instance'],{
-			    headless: true,
-			    autoRefresh:true, 
-			    qrRefreshS:30,
-			    killTimer: 6000
-			}).then(function(client){
+			openWA.create(WA_CONFIG).then(function(client){
 			    WA_CLIENT.SETUP(client, F.config['webhook'], F.config['token']);
 			});	
 
@@ -984,7 +967,7 @@ function view_qrcode(CLIENT_ID){
 function deleteFile(instance, masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == masterKey){
+		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
 			try {
 				if (fs.existsSync(process.cwd()+'/public/cdn/'+self.body['filename'])) {
 				    fs.unlinkSync(process.cwd()+'/public/cdn/'+self.body['filename']);
