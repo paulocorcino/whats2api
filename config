@@ -1,9 +1,9 @@
 name                            : Whats2API
 author                          : João Vitor Miranda Santos
 version                         : 0.0.9
-
-//WhatsApp Configurations		
-instance						: 83430
-webhook							: https://example.requestcatcher.com
-token							: j19ksi1mim1lksm12213
-masterKey						: w2apiisthebestlibrary
+client							: webrunstudio
+instance						: 9001
+webhook							: http://127.0.0.1:8049/webrunstudio/wapihook.rule?sys=BOT
+token							: GCKvf7XeiXYl983I7mvrr+NhozytVw8S0LLDVoiafCE
+masterKey						: GCKvf7XeiXYl983I7mvrr+NhozytVw8S0LLDVoiafCE
+licensekey						: [licence]
