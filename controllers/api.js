@@ -35,6 +35,10 @@ exports.install = function() {
 	ROUTE('/{instance}/sendGhostForward',		sendGhostForward,	['post',default_timeout]);
 	ROUTE('/{instance}/getProfilePic',			getProfilePic,		['post',default_timeout]);
 	
+	/* novas rotas */
+	ROUTE('/{instance}/sendButtons',					sendButtons,				['post',default_timeout]);
+	ROUTE('/{instance}/sendReplyWithMentions',			sendReplyWithMentions,		['post',default_timeout]);
+	
 
 	/*
 	* API ROUTES - PersonalInformation
@@ -166,6 +170,83 @@ function sendMessage(instance){
 							var r = await WA_CLIENT.CONNECTION.sendText(processData.chatId, BODY['body']);							
 							self.json({status:true, id: r});
 						}						
+						getId();
+						
+					} else {
+						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
+					}
+				});
+			} else {
+				self.json({status:false, err: "Paramether body is mandatory"});
+			}
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
+* Route to send Button
+* tested on version 0.0.8
+* performance: operational
+*/
+function sendButtons(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			if (typeof BODY['body'] !== 'undefined'  &&
+				typeof BODY['title'] !== 'undefined' &&
+				typeof BODY['buttons'] !== 'undefined') {
+				BODY_CHECK(BODY).then(function(processData){
+					if(processData.status){				
+						
+						//notify after send message who is the id message
+						var getId = async function() {	
+							var r = await WA_CLIENT.CONNECTION.sendButtons(processData.chatId, BODY['body'], BODY['buttons'], BODY['title'], (BODY['footer'] ? BODY['footer'] : ""));
+							self.json({status:true, id: r});
+						}		
+						
+						getId();
+						
+					} else {
+						self.json({status:false, err: "It is mandatory to inform the parameter 'chatId' or 'phone'"});
+					}
+				});
+			} else {
+				self.json({status:false, err: "Paramether body is mandatory"});
+			}
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
+* Route to send Reply
+* tested on version 0.0.8
+* performance: operational
+*/
+function sendReplyWithMentions(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			if (typeof BODY['body'] !== 'undefined'  &&
+				typeof BODY['messageid'] !== 'undefined') {
+				BODY_CHECK(BODY).then(function(processData){
+					if(processData.status){				
+						
+						//notify after send message who is the id message
+						var getId = async function() {	
+							var r = await WA_CLIENT.CONNECTION.sendReplyWithMentions(processData.chatId, BODY['body'], BODY['messageid']);
+							self.json({status:true, id: r});
+						}		
+						
 						getId();
 						
 					} else {
