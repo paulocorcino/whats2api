@@ -198,14 +198,13 @@ function sendButtons(instance){
 	if(WA_CLIENT){
 		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 			if (typeof BODY['body'] !== 'undefined'  &&
-				typeof BODY['title'] !== 'undefined' &&
 				typeof BODY['buttons'] !== 'undefined') {
 				BODY_CHECK(BODY).then(function(processData){
 					if(processData.status){				
 						
 						//notify after send message who is the id message
 						var getId = async function() {	
-							var r = await WA_CLIENT.CONNECTION.sendButtons(processData.chatId, BODY['body'], BODY['buttons'], BODY['title'], (BODY['footer'] ? BODY['footer'] : ""));
+							var r = await WA_CLIENT.CONNECTION.sendButtons(processData.chatId, BODY['body'], BODY['buttons'], (BODY['title'] ? BODY['title'] : ""), (BODY['footer'] ? BODY['footer'] : ""));
 							self.json({status:true, id: r});
 						}		
 						
