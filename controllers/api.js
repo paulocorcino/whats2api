@@ -38,7 +38,11 @@ exports.install = function() {
 	/* novas rotas */
 	ROUTE('/{instance}/sendButtons',					sendButtons,				['post',default_timeout]);
 	ROUTE('/{instance}/sendReplyWithMentions',			sendReplyWithMentions,		['post',default_timeout]);
-	
+	ROUTE('/{instance}/cutCache',						cutCache,					['post',default_timeout]);
+	ROUTE('/{instance}/clearAllChats',					clearAllChats,				['post',default_timeout]);
+	ROUTE('/{instance}/clearChat',						clearChat,					['post',default_timeout]);
+	ROUTE('/{instance}/checkNumberStatus',				checkNumberStatus,			['post',default_timeout]);
+	ROUTE('/{instance}/syncContacts',					syncContacts,				['post',default_timeout]);
 
 	/*
 	* API ROUTES - PersonalInformation
@@ -743,6 +747,138 @@ function typing(instance){
 				if(processData.status){
 					if(typeof BODY['state'] !== 'undefined'){
 						WA_CLIENT.CONNECTION.simulateTyping(processData.chatId,BODY['state']);
+						self.json({status:true});
+					} else {
+						self.json({status:false, err: "Parameter state is not set"});
+					}
+				} else {
+					self.json({status:false, err: "Internal error, please contact support team"});
+				}
+			});
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
+* Check if number is whatsapp
+* performance: Not Tested
+*/
+function checkNumberStatus(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			BODY_CHECK(BODY).then(function(processData){
+				if(processData.status){
+					
+					var getId = async function() {
+						var r = await WA_CLIENT.CONNECTION.checkNumberStatus(processData.chatId);
+						self.json({status:true, data: r});
+					}
+					getId();
+					
+				} else {
+					self.json({status:false, err: "Internal error, please contact support team"});
+				}
+			});
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
+* To do route Clear Cache
+* performance: Not Tested
+*/
+function cutCache(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			BODY_CHECK(BODY).then(function(processData){				
+						
+			var getId = async function() {
+				var r = await WA_CLIENT.CONNECTION.cutChatCache();
+				self.json({status:true, data: r});
+			}
+			getId();				
+				
+			});
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
+* Sync contact ok
+* performance: Not Tested
+*/
+function syncContacts(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			BODY_CHECK(BODY).then(function(processData){
+				WA_CLIENT.CONNECTION.syncContacts();
+				self.json({status:true});				
+			});
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+
+/*
+* That route Clear All Chat
+* performance: Not Tested
+*/
+function clearAllChats(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			BODY_CHECK(BODY).then(function(processData){				
+						
+			
+				WA_CLIENT.CONNECTION.clearAllChats();
+				self.json({status:true});
+						
+				
+			});
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
+* Clear chat
+* performance: Not Tested
+*/
+function clearChat(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			BODY_CHECK(BODY).then(function(processData){
+				if(processData.status){
+					if(typeof BODY['state'] !== 'undefined'){
+						WA_CLIENT.CONNECTION.clearChat(processData.chatId);
 						self.json({status:true});
 					} else {
 						self.json({status:false, err: "Parameter state is not set"});
