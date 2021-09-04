@@ -29,7 +29,9 @@ global.WA_CONFIG = {
     killTimer: 6000,
     blockCrashLogs: true, 
     bypassCSP: true,
-	killProcessOnBrowserClose: false   
+	killProcessOnBrowserClose: false,
+	maxChats: 1000,
+	maxMessages: 1000
   };
 
 /*
