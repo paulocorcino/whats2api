@@ -1,5 +1,6 @@
 //w2api - Version 0.0.8
 var fs = require('fs');
+const os = require("os");
 const { download } = require('total.js/utils');
 var request = require('request').defaults({ encoding: null });
 global.ALLOW_TYPES = ['application/pdf','image/jpeg','image/png','audio/ogg','image/gif'];
@@ -9,6 +10,7 @@ global.default_timeout_3 = 60000;
 global.download = require('download-file');
 var vCardsJS = require('vcards-js');
 global.qrCodeManager = null;
+const sckClient = new Map();
 
 exports.install = function() {
 	
@@ -17,7 +19,9 @@ exports.install = function() {
 	* This route exist to you can scan qrCode remotelly from browser
 	*/
 	ROUTE('/{instance}/qrcode/',				view_qrcode			);
+	ROUTE('/{instance}/getQrcode/',				getQrcode			);
 	WEBSOCKET('/qrCodeSocket/', 				qrCodeSocket, 		['json']);
+	
 
 	/*
 	* API ROUTES - Services
@@ -34,6 +38,7 @@ exports.install = function() {
 	ROUTE('/{instance}/sendContact',			sendContact,		['post',default_timeout]);
 	ROUTE('/{instance}/sendGhostForward',		sendGhostForward,	['post',default_timeout]);
 	ROUTE('/{instance}/getProfilePic',			getProfilePic,		['post',default_timeout]);
+	ROUTE('/{instance}/getFile',				getFile,			['post',default_timeout_3]);
 	
 	/* novas rotas */
 	ROUTE('/{instance}/sendButtons',					sendButtons,				['post',default_timeout]);
@@ -82,6 +87,7 @@ exports.install = function() {
 	ROUTE('/{masterKey}/reloadServer',						reloadServer,		[60000]);
 	ROUTE('/{masterKey}/killInstance',						killInstance,		[60000]);
 	ROUTE('/{masterKey}/setWebhook',						setWebhook,			['post',default_timeout]);
+	WEBSOCKET('/{masterKey}', 								waSocket, 			['json']);
 
 };
 
@@ -128,6 +134,25 @@ function is_url(str)
           return false;
 }
 
+/* update env */
+function setEnvValue(key, value) {
+
+    // read file from hdd & split if from a linebreak to a array
+    const ENV_VARS = fs.readFileSync(WA_CONFIG_ENV, "utf8").split(os.EOL);
+
+    // find the env we want based on the key
+    const target = ENV_VARS.indexOf(ENV_VARS.find((line) => {
+        return line.match(new RegExp(key));
+    }));
+
+    // replace the key/value with the new value
+    ENV_VARS.splice(target, 1, `${key}=${value}`);
+
+    // write everything back to the file system
+    fs.writeFileSync(WA_CONFIG_ENV, ENV_VARS.join(os.EOL));
+
+}
+
 
 /* http download */
 const download_http = (url, path, callback) => {
@@ -156,6 +181,28 @@ function qrCodeSocket(){
 		console.log(client, message);
 	});
 };
+
+function waSocket(){
+	WA_SOCKET = this;
+
+	WA_SOCKET.on('open', function(client) {
+		console.log('Connect ' + client.id + ' / Online:', WA_SOCKET.online);
+		client.send({ status: true, id: '{0}'.format(client.id) });
+		sckClient.set(client.id, client.ip);
+	});
+
+	WA_SOCKET.on('message', function(client, message) {
+		console.log(message);
+		//console.log(client, message);
+	});
+
+	WA_SOCKET.on('close', function(client) {
+		sckClient.delete(client.id);
+		console.log('Disconnect ' + client.id + ' / Online:', WA_SOCKET.online);		
+	});
+};
+
+
 
 /*
 * Route to send Messages
@@ -803,6 +850,40 @@ function getProfilePic(instance){
 }
 
 /*
+* That route allow you to ger profilePic from someone based on 
+* performance: Not Tested
+*/
+function getFile(instance){
+	var self = this;
+	var BODY = self.body;
+	if(WA_CLIENT){
+		if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
+			if(BODY['filename'] !== 'undefined') {
+				var getId = async function() {
+					try {
+						var r = fs.readFile(process.cwd() + '/public/cdn/' + BODY['filename'], { encoding: 'base64' },  (e, data) => {
+							if (e) throw self.json({status:false, err: "Fail on get file :" + e.name });
+							self.json({status:true, b64: data});
+						  });
+						
+					} catch(e) {
+						self.json({status:false, err: "Fail on get file :" + e.name });
+					}
+				}
+				getId();
+			} else {
+				self.json({status:false, err: "File name not defined, set value 'filename' "});
+			}
+			
+		} else {
+			self.json({status:false, err: "Wrong token authentication"});
+		}
+	} else {
+		self.json({status:false, err: "Your company is not set yet"});
+	}
+}
+
+/*
 * That route allow you to simulate typing into an conversation
 * performance: Not Tested
 */
@@ -973,7 +1054,7 @@ function clearChat(instance){
 function screenCapture(instance,masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				var getId = async function() {
 					var r = await WA_CLIENT.CONNECTION.getSnapshot();
@@ -1021,7 +1102,7 @@ function isConnected(instance,masterKey){
 function takeOver(instance,masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				WA_CLIENT.CONNECTION.forceRefocus();
 				self.json({status:true});
@@ -1094,7 +1175,7 @@ function setMyStatus(){
 function batteryLevel(instance,masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 			if(WA_CLIENT.TOKEN == decodeURIComponent(self.query['token'])){
 				WA_CLIENT.CONNECTION.getBatteryLevel().then(function(response){
 					console.log(response);
@@ -1119,7 +1200,7 @@ function batteryLevel(instance,masterKey){
 async function readInstance(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 			try {
 				var resetState = await WA_CLIENT.CONNECTION.setPresence(true); 
 				var isConnected = await WA_CLIENT.CONNECTION.isConnected(); 
@@ -1156,9 +1237,10 @@ async function readInstance(masterKey){
 function setWebhook(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 			WA_CLIENT.WEBHOOK = self.body['webhook'];
-			F.config['webhook'] = self.body['webhook'];
+			WA_WEBHOOK = self.body['webhook'];
+			setEnvValue("WA_WEBHOOK", self.body['webhook']);
 			self.json({status:true, webhook: self.body['webhook']});
 		} else {
 			self.json({status:false, err: "You don't have permissions to this action"});
@@ -1176,14 +1258,14 @@ function setWebhook(masterKey){
 async function reloadServer(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 		
 				await WA_CLIENT.CONNECTION.kill();
 				await delay(5000);
 			
 
 			openWA.create(WA_CONFIG).then(function(client){
-			    WA_CLIENT.SETUP(client, F.config['webhook'], F.config['token']);
+			    WA_CLIENT.SETUP(client, WA_WEBHOOK, WA_TOKENKEY);
 			});
 			self.json({status:true});
 		} else {
@@ -1202,7 +1284,7 @@ async function reloadServer(masterKey){
 async function killInstance(masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 			
 			//console.log(WA_CLIENT, WA_CLIENT.CONNECTION);
 			
@@ -1211,7 +1293,7 @@ async function killInstance(masterKey){
 				await delay(5000);					
 			}
 
-			var relativePath = require('path').resolve(process.cwd(), 'whatsSessions/' + F.config['instance'] + '.data.json');
+			var relativePath = require('path').resolve(process.cwd(), 'whatsSessions/' + WA_INSTANCE + '.data.json');
 			
 			//delete arquivo
 			if (fs.existsSync(relativePath)) {
@@ -1219,7 +1301,7 @@ async function killInstance(masterKey){
 			}
 			
 			openWA.create(WA_CONFIG).then(function(client){
-			    WA_CLIENT.SETUP(client, F.config['webhook'], F.config['token']);
+			    WA_CLIENT.SETUP(client, WA_WEBHOOK, WA_TOKENKEY);
 			});	
 
 			self.json({status:true});
@@ -1245,6 +1327,15 @@ function view_qrcode(CLIENT_ID){
 	}
 };
 
+function getQrcode(CLIENT_ID){
+	var self = this;
+	if(WA_CLIENT){
+		self.json({status:true, qrcode: WA_CLIENT.QR_CODE});
+	} else {
+		self.json({status:false, err: "QR CODE NOT FOUND IN THIS SERVER"});
+	}
+};
+
 /*
 * Route to delete some file on internal CDN
 * tested on version 0.0.9
@@ -1253,7 +1344,7 @@ function view_qrcode(CLIENT_ID){
 function deleteFile(instance, masterKey){
 	var self = this;
 	if(WA_CLIENT){
-		if(F.config['masterKey'] == decodeURIComponent(masterKey)){
+		if(WA_MASTERKEY == decodeURIComponent(masterKey)){
 			try {
 				if (fs.existsSync(process.cwd()+'/public/cdn/'+self.body['filename'])) {
 				    fs.unlinkSync(process.cwd()+'/public/cdn/'+self.body['filename']);
