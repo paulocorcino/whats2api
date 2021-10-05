@@ -12,7 +12,8 @@ const request = require('request');
 const moment = require('moment');
 const mime = require('mime-types');
 const { default: PQueue } = require("p-queue");
-const queue = new PQueue({timeout: 1000, throwOnTimeout: false });
+const crypto = require('crypto');
+const queue = new PQueue({timeout: 3000, throwOnTimeout: false });
 
 global.WA_CONFIG_ENV = process.cwd() + '/whatsSessions/config.env';
 
@@ -146,7 +147,7 @@ var SANITIZE_MSG = function(instanceID,data) {
       id: data.id,
       body: data.body,
       filelink: data.filelink,
-      mimetype: (data.mimetype ? data.mimetype : null),
+      mimetype: data.mimetype,
       fromMe: false,
       me: data.to,
       self: 0,
@@ -176,6 +177,7 @@ var SANITIZE_MSG = function(instanceID,data) {
 WHATS_API.prototype.PROCESS_MESSAGE = function(data){
   var that = this;
   var SANITIZED = null;
+
    try {      
 		SANITIZED = SANITIZE_MSG(that.INSTANCE,data);
     } catch(e) {
@@ -183,16 +185,20 @@ WHATS_API.prototype.PROCESS_MESSAGE = function(data){
         console.log(e);    
     }
 
+    // send websocket if avaible
   if(hasSocket()) {
     try {
       WA_SOCKET.send(SANITIZED);
 
       if (DEBUG)
         console.log(SANITIZED);
+
+      return;
+
     } catch(e) {
-      ERROR_CATCHER(err);
+      console.log(e);
     }
-  } else {
+  } 
 
       //send post 
       request({
@@ -213,7 +219,7 @@ WHATS_API.prototype.PROCESS_MESSAGE = function(data){
         }
       });
 
-  }
+  
 };
 
 /*
@@ -225,17 +231,21 @@ WHATS_API.prototype.PROCESS_ACK = function(data){
   var SANITIZED = SANITIZE_ACK(that.INSTANCE,data);
 
   if(hasSocket()) {
+
     try{
+
       WA_SOCKET.send(SANITIZED);
       
       if (DEBUG)
         console.log(SANITIZED);
 
+      return;
+
     } catch(e) {
-      ERROR_CATCHER(err);
+      console.log(e);
     }
 
-  } else {
+  } 
 
       //send post
       request({
@@ -256,7 +266,7 @@ WHATS_API.prototype.PROCESS_ACK = function(data){
         }
       });
 
-  }
+  
 };
 
 /*
@@ -286,7 +296,8 @@ WHATS_API.prototype.SETUP = function(CLIENT,WEBHOOK_INPUT,TOKEN_INPUT) {
       if (message.mimetype) {
         //SAVING MEDIA RECEIVED AND EXPOSE ADDRESS TO WEB
         const mediaData = openWA.decryptMedia(message,uaOverride).then(function(DECRYPTED_DATA){
-          var filename = `${message.t}.${mime.extension(message.mimetype)}`;		
+          let rname = crypto.randomBytes(Math.ceil(20 / 2)).toString('hex').slice(0, 20);
+          var filename = `${rname}.${mime.extension(message.mimetype)}`;		
           fs.writeFile(process.cwd()+'/public/cdn/'+filename, Buffer.from(DECRYPTED_DATA, 'base64'), 'base64', function(err) {
             if(err){
               console.log("#Error on saving file");
